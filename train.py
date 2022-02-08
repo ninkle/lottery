@@ -1,51 +1,68 @@
 import torch
 import torch.nn as nn
-import click
+
+import yaml
 import os
 
 from model import Net
 from trainer import Trainer 
 
-@click.group()
-def cli():
-    pass
 
-@cli.command()
-@click.option("--epochs", default=10)
-@click.option("--lr", default=0.001)
-@click.option("--gamma", default=0.7)
-@click.option("--batch-size", default=32)
-@click.option("--experiment-name", type=str, help="give your experiment a unique name")
-def train_dense_model(experiment_name, epochs, lr, gamma, batch_size):
-    
-    save_dir = os.path.join("experiments", experiment_name)
+def train_dense_model(config):
+    ############# unpack config ######################
+    directory_name = config["save_directory"]
+    experiment_name = config["save_experiment"]
+    batch_size = config["batch_size"]
+    epochs = config["epochs"]
+    lr = config["lr"]
+    gamma = config["gamma"]
+    device = config["device"]
+    ###################################################
 
+    # init model, trainer
+    save_dir = os.path.join("dense_experiments", directory_name, experiment_name)
     model = Net()
-    trainer = Trainer(model, batch_size, epochs, lr, gamma, save_dir)
+    trainer = Trainer(model, batch_size, epochs, lr, gamma, save_dir, device=device)
 
     # save initialization scheme
     init_path = os.path.join(save_dir, "init.pt")
     model.save(init_path)
 
-    # train model - the model will save in experiments/$EXPERIMENT_DIR/trained.pt 
+    # train model
     trainer.train()
 
-@cli.command()
-@click.option("--pruning-percentage", default=0.7)
-@click.option("--pruning-method", default="layerwise", help="options: `layerwise` or `global`")
-@click.option("--experiment-name", type=str, help="parent directory where a trained model is stored")
-@click.option("--save_file", default="pruned.pt")
-@click.option("--epochs", default=10)
-@click.option("--lr", default=0.001)
-@click.option("--gamma", default=0.7)
-@click.option("--batch_size", default=32)
-def train_pruned_model(pruning_percentage, pruning_method, experiment_name, save_file, epochs, lr, gamma, batch_size):
+    # save hps and metadata
+    with open(os.path.join(save_dir, f"{experiment_name}_hps.yaml"), "w") as f:
+        yaml.dump(config, f)
+
+    ####################################################
+    # model saves at $/Research/Lottery/dense_experiments/$DIR_NAME/$EXP_NAME/trained.pt
+    # init saves at $/Research/Lottery/dense_experiments/$DIR_NAME/$EXP_NAME/init.pt
+    # hps saves at $/Research/Lottery/dense_experiments/$DIR_NAME/$EXP_NAME/$EXP_NAME_hps.yaml
+    ####################################################
+
+
+def train_pruned_model(config):
+    ############# unpack config ######################
+    load_directory = config["load_directory"]
+    load_experiment = config["load_experiment"]
+    save_directory = config["save_directory"]
+    save_experiment = config["save_experiment"]
+    batch_size = config["batch_size"]
+    epochs = config["epochs"]
+    lr = config["lr"]
+    gamma = config["gamma"]
+    pruning_method = config["pruning_method"]
+    pruning_percentage = config["pruning_percentage"]
+    device = config["device"]
+    ###################################################
     
-    save_dir = os.path.join("experiments", experiment_name)
+    load_dir = os.path.join("dense_experiments", load_directory, load_experiment)
+    save_dir = os.path.join("pruned_experiments", save_directory, save_experiment)
+    model_train_path = os.path.join(load_dir, "trained.pt") 
+    model_init_path = os.path.join(load_dir, "init.pt") 
 
-    model_train_path = os.path.join(save_dir, "trained.pt")
-    model_init_path = os.path.join(save_dir, "init.pt")
-
+    # init models
     trained_model = Net()
     init_model = Net()
 
@@ -64,11 +81,30 @@ def train_pruned_model(pruning_percentage, pruning_method, experiment_name, save
     init_model.mask(mask)
 
     # train pruned model - the model will save in $EXPERIMENT_DIR/pruned.pt
-    trainer = Trainer(init_model, batch_size, epochs, lr, gamma, save_dir, pruned=True)
+    trainer = Trainer(init_model, batch_size, epochs, lr, gamma, save_dir, device=device, pruned=True)
     trainer.train()
 
+    # save hps and metadata
+    with open(os.path.join(save_dir, f"{save_experiment}_hps.yaml"), "w") as f:
+        yaml.dump(config, f)
+
+    ####################################################
+    # model saves at $/Research/Lottery/pruned_experiments/$DIR_NAME/$EXP_NAME/trained.pt
+    # init saves at $/Research/Lottery/pruned_experiments/$DIR_NAME/$EXP_NAME/init.pt
+    # hps saves at $/Research/Lottery/pruned_experiments/$DIR_NAME/$EXP_NAME/$EXP_NAME_hps.yaml
+    ####################################################
+
+
 if __name__ == "__main__":
-    cli()
+    with open("hps.yaml") as f:
+        config = yaml.load(f, Loader=yaml.FullLoader)
+    
+    # choose train script
+    train_pruned_model(config["prune"])
+    #train_dense_model(config["dense"])
+    
+
+    
 
     
     

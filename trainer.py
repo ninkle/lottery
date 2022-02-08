@@ -73,7 +73,7 @@ class Trainer(object):
             vl, acc = self.test(step)
             scheduler.step()
 
-            if vl >= prev_val:
+            if self.epochs == 1 or vl >= prev_val:  # debug mode or early stopping
                 if not self.pruned:
                     f = "trained.pt"
                 else:

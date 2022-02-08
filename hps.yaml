@@ -1,0 +1,24 @@
+dense: &DENSE
+  epochs: 1
+  lr: 0.001
+  batch_size: 32
+  gamma: 0.7
+  device: "cpu"
+
+  # save model init
+  save_directory: "demo"
+  save_experiment: "default_dense_model"
+
+
+prune: 
+  <<: *DENSE  # reference and override `dense` hps
+  pruning_percentage: 0.7
+  pruning_method: "layerwise"
+
+  # load dense model init
+  load_directory: "demo"
+  load_experiment: "default_dense_model"
+
+  # save trained pruned model
+  save_directory: "demo"
+  save_directory: "default_pruned_model"
